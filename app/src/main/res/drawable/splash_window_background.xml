@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Solid luxury dark background identical to app background (#070A12) -->
+    <item android:drawable="@color/splash_background" />
+
+    <!-- Perfectly centered, un-stretched luxury gold logo for phone, tablet and TV screens -->
+    <item
+        android:width="140dp"
+        android:height="140dp"
+        android:drawable="@drawable/vizyontv_gold_icon_1791394537825"
+        android:gravity="center" />
+</layer-list>
+

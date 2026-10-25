@@ -34,69 +34,11 @@ class TurkishMediaOnlineService(
     }
 
     suspend fun fetchNewsChannels(): List<MediaItem> = withContext(Dispatchers.IO) {
-        val verified = getVerifiedNewsChannels()
-        try {
-            val request = Request.Builder()
-                .url("https://iptv-org.github.io/iptv/categories/news.m3u")
-                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
-                .build()
-
-            client.newCall(request).execute().use { response ->
-                if (response.isSuccessful) {
-                    val body = response.body?.string()
-                    if (!body.isNullOrBlank()) {
-                        val parsed = internetService.parseRawM3uContent(body)
-                            .filter { it.baslik.lowercase().contains("tr") || it.kategori.equals("Haber", ignoreCase = true) }
-                            .map { item ->
-                                val logo = internetService.getOfficialWebLogo(item.baslik)
-                                item.copy(
-                                    collectionType = MediaCollection.HABER,
-                                    resim_url = if (logo.isNotBlank() && !logo.contains("unsplash")) logo else item.resim_url
-                                )
-                            }
-                        if (parsed.isNotEmpty()) {
-                            return@withContext (verified + parsed).distinctBy { it.baslik.lowercase().trim() }
-                        }
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            Log.w(tag, "Haber kanalları internet güncelleme uyarısı: ${e.message}")
-        }
-        verified
+        getVerifiedNewsChannels()
     }
 
     suspend fun fetchKidsChannels(): List<MediaItem> = withContext(Dispatchers.IO) {
-        val verified = getVerifiedKidsChannels()
-        try {
-            val request = Request.Builder()
-                .url("https://iptv-org.github.io/iptv/categories/kids.m3u")
-                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
-                .build()
-
-            client.newCall(request).execute().use { response ->
-                if (response.isSuccessful) {
-                    val body = response.body?.string()
-                    if (!body.isNullOrBlank()) {
-                        val parsed = internetService.parseRawM3uContent(body)
-                            .filter { it.baslik.lowercase().contains("tr") || it.kategori.equals("Çocuk", ignoreCase = true) }
-                            .map { item ->
-                                val logo = internetService.getOfficialWebLogo(item.baslik)
-                                item.copy(
-                                    collectionType = MediaCollection.COCUK,
-                                    resim_url = if (logo.isNotBlank() && !logo.contains("unsplash")) logo else item.resim_url
-                                )
-                            }
-                        if (parsed.isNotEmpty()) {
-                            return@withContext (verified + parsed).distinctBy { it.baslik.lowercase().trim() }
-                        }
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            Log.w(tag, "Çocuk kanalları internet güncelleme uyarısı: ${e.message}")
-        }
-        verified
+        getVerifiedKidsChannels()
     }
 
     // Deprecated compatibility methods

@@ -47,7 +47,7 @@ class VizyonteleApp : Application(), ImageLoaderFactory {
             .readTimeout(15, TimeUnit.SECONDS)
             .addInterceptor { chain ->
                 val request = chain.request().newBuilder()
-                    .header("User-Agent", "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36 Vizyontele/1.0")
+                    .header("User-Agent", "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36 VizyonTV/1.0 (contact: enesozkayabasi@gmail.com)")
                     .build()
                 chain.proceed(request)
             }
@@ -60,16 +60,17 @@ class VizyonteleApp : Application(), ImageLoaderFactory {
             }
             .memoryCache {
                 MemoryCache.Builder(this)
-                    .maxSizePercent(0.25)
+                    .maxSizePercent(0.30)
                     .build()
             }
             .diskCache {
                 DiskCache.Builder()
                     .directory(cacheDir.resolve("image_cache"))
-                    .maxSizePercent(0.05)
+                    .maxSizePercent(0.08)
                     .build()
             }
-            .crossfade(true)
+            .crossfade(false)
+            .respectCacheHeaders(false)
             .build()
     }
 }

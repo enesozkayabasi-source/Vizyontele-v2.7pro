@@ -1,12 +1,15 @@
 package com.example.ui.components
 
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,6 +29,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Radio
 import androidx.compose.material.icons.filled.SportsSoccer
 import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material.icons.outlined.FavoriteBorder
@@ -36,6 +40,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -74,22 +79,83 @@ fun MediaCard(
     modifier: Modifier = Modifier
 ) {
     var isFocused by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(
-        targetValue = if (isFocused) 1.06f else 1.0f,
-        label = "tv_card_scale"
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    val targetScale = when {
+        isPressed -> 0.95f
+        isFocused -> 1.06f
+        else -> 1.0f
+    }
+
+    val animatedScale by animateFloatAsState(
+        targetValue = targetScale,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "media_card_scale"
     )
 
-    val cardAspectRatio = 1.35f
-    val isSport = item.kategori.equals("Spor", ignoreCase = true) ||
+    val cardAspectRatio = 16f / 9f
+    val isHaber = item.collectionType == MediaCollection.HABER ||
+        item.kategori.contains("haber", ignoreCase = true) ||
+        item.baslik.contains("haber", ignoreCase = true) ||
+        item.baslik.contains("ntv", ignoreCase = true) ||
+        item.baslik.contains("bloomberg", ignoreCase = true) ||
+        item.baslik.contains("cnbc", ignoreCase = true)
+
+    val isCocuk = item.collectionType == MediaCollection.COCUK ||
+        item.kategori.contains("çocuk", ignoreCase = true) ||
+        item.kategori.contains("cocuk", ignoreCase = true) ||
+        item.baslik.contains("çocuk", ignoreCase = true) ||
+        item.baslik.contains("disney", ignoreCase = true) ||
+        item.baslik.contains("junior", ignoreCase = true) ||
+        item.baslik.contains("jnr", ignoreCase = true) ||
+        item.baslik.contains("minika", ignoreCase = true) ||
+        item.baslik.contains("cartoon", ignoreCase = true) ||
+        item.baslik.contains("baby", ignoreCase = true) ||
+        item.baslik.contains("zarok", ignoreCase = true) ||
+        item.baslik.contains("nickelodeon", ignoreCase = true) ||
+        item.baslik.contains("pepee", ignoreCase = true)
+
+    val isRadio = item.collectionType == MediaCollection.RADYO ||
+        item.kategori.contains("radyo", ignoreCase = true) ||
+        item.baslik.contains("radyo", ignoreCase = true) ||
+        item.baslik.contains("fm", ignoreCase = true)
+
+    val isSport = !isHaber && !isCocuk && !isRadio && (item.collectionType == MediaCollection.SPOR ||
+        item.kategori.equals("Spor", ignoreCase = true) ||
         item.baslik.contains("spor", ignoreCase = true) ||
-        item.baslik.contains("tjk", ignoreCase = true)
+        item.baslik.contains("tjk", ignoreCase = true))
+
+    val displayCategory = remember(item.kategori, item.collectionType) {
+        when {
+            isRadio -> if (item.kategori.isBlank() || item.kategori.equals("Genel", ignoreCase = true)) "Canlı Radyo" else "Radyo • ${item.kategori}"
+            isHaber -> {
+                val clean = item.kategori
+                    .replace("Çizgi Film", "Gündem", ignoreCase = true)
+                    .replace("Film", "Haber", ignoreCase = true)
+                    .replace("Sinema", "Haber", ignoreCase = true)
+                if (clean.isBlank() || clean.equals("Genel", ignoreCase = true)) "Canlı Haber" else clean
+            }
+            isCocuk -> {
+                val clean = item.kategori
+                    .replace("Çizgi Film", "Çizgi Dizi", ignoreCase = true)
+                    .replace("Film", "Çizgi Dizi", ignoreCase = true)
+                    .replace("Sinema", "Çocuk", ignoreCase = true)
+                if (clean.isBlank() || clean.equals("Genel", ignoreCase = true)) "Çocuk Kulübü" else clean
+            }
+            else -> item.kategori
+        }
+    }
 
     val primaryColor = MaterialTheme.colorScheme.primary
     val cardBg = if (isFocused) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
 
     Card(
         modifier = modifier
-            .scale(scale)
+            .scale(animatedScale)
             .testTag("media_card_${item.id}")
             .onFocusChanged { isFocused = it.isFocused }
             .focusable()
@@ -102,19 +168,19 @@ fun MediaCard(
                 }
             }
             .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
+                interactionSource = interactionSource,
+                indication = ripple(bounded = true, color = primaryColor),
                 onClick = onClick
             )
             .border(
-                width = if (isFocused) 3.dp else 1.dp,
-                color = if (isFocused) primaryColor else MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
+                width = if (isFocused) 2.5.dp else 1.dp,
+                color = if (isFocused) primaryColor else primaryColor.copy(alpha = 0.18f),
                 shape = RoundedCornerShape(14.dp)
             ),
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = cardBg),
         elevation = CardDefaults.cardElevation(
-            defaultElevation = if (isFocused) 10.dp else 2.dp
+            defaultElevation = if (isFocused) 10.dp else 3.dp
         )
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
@@ -122,26 +188,33 @@ fun MediaCard(
                 if (item.resim_url.isNotBlank() && !item.resim_url.contains("unsplash")) {
                     item.resim_url
                 } else {
-                    com.example.service.InternetChannelService().getOfficialWebLogo(item.baslik)
+                    com.example.service.InternetChannelService.getOfficialWebLogo(item.baslik)
                 }
             }
 
-            // Channel Logo / Media Image Container (Placed cleanly at the top)
+            var isImageLoadError by remember(resolvedLogoUrl) { mutableStateOf(false) }
+
+            // Channel Logo / Media Image Container (Placed cleanly at the top with 16:9 ratio)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .aspectRatio(cardAspectRatio)
-                    .background(Color(0xFF0C101A)),
+                    .background(Color(0xFF090D17)),
                 contentAlignment = Alignment.Center
             ) {
-                if (resolvedLogoUrl.isNotBlank()) {
+                if (resolvedLogoUrl.isNotBlank() && !isImageLoadError) {
                     AsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
                             .data(resolvedLogoUrl)
                             .crossfade(true)
+                            .setHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                            .setHeader("Referer", "https://www.google.com/")
+                            .memoryCacheKey(resolvedLogoUrl)
+                            .diskCacheKey(resolvedLogoUrl)
                             .build(),
                         contentDescription = item.baslik,
                         contentScale = ContentScale.Fit,
+                        onError = { isImageLoadError = true },
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(14.dp)
@@ -153,6 +226,7 @@ fun MediaCard(
                     ) {
                         Icon(
                             imageVector = when {
+                                isRadio -> Icons.Default.Radio
                                 isSport -> Icons.Default.SportsSoccer
                                 else -> Icons.Default.LiveTv
                             },
@@ -186,31 +260,7 @@ fun MediaCard(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if (isSport || item.collectionType == MediaCollection.SPOR) {
-                        Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = NeonAmber.copy(alpha = 0.95f)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(6.dp)
-                                        .clip(CircleShape)
-                                        .background(Color.Black)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = "SPOR",
-                                    color = Color.Black,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.ExtraBold
-                                )
-                            }
-                        }
-                    } else if (item.collectionType == MediaCollection.HABER) {
+                    if (isHaber) {
                         Surface(
                             shape = RoundedCornerShape(6.dp),
                             color = NeonAmber.copy(alpha = 0.95f)
@@ -234,7 +284,7 @@ fun MediaCard(
                                 )
                             }
                         }
-                    } else if (item.collectionType == MediaCollection.COCUK) {
+                    } else if (isCocuk) {
                         Surface(
                             shape = RoundedCornerShape(6.dp),
                             color = NeonCyan.copy(alpha = 0.95f)
@@ -252,6 +302,54 @@ fun MediaCard(
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
                                     text = "ÇOCUK",
+                                    color = Color.Black,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.ExtraBold
+                                )
+                            }
+                        }
+                    } else if (isSport) {
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = NeonAmber.copy(alpha = 0.95f)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .clip(CircleShape)
+                                        .background(Color.Black)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "SPOR",
+                                    color = Color.Black,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.ExtraBold
+                                )
+                            }
+                        }
+                    } else if (isRadio) {
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = NeonAmber.copy(alpha = 0.95f)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .clip(CircleShape)
+                                        .background(Color.Black)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "RADYO",
                                     color = Color.Black,
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.ExtraBold
@@ -359,7 +457,7 @@ fun MediaCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = item.kategori,
+                        text = displayCategory,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 11.sp,
@@ -371,17 +469,17 @@ fun MediaCard(
                     Spacer(modifier = Modifier.width(6.dp))
 
                     Text(
-                        text = when (item.collectionType) {
-                            MediaCollection.SPOR -> "Spor"
-                            MediaCollection.HABER -> "Haber"
-                            MediaCollection.COCUK -> "Çocuk"
-                            MediaCollection.CANLI_TV -> "Canlı"
+                        text = when {
+                            isHaber -> "Haber"
+                            isCocuk -> "Çocuk"
+                            isSport -> "Spor"
+                            else -> "Canlı"
                         },
-                        color = when (item.collectionType) {
-                            MediaCollection.SPOR -> NeonAmber
-                            MediaCollection.HABER -> NeonAmber
-                            MediaCollection.COCUK -> NeonCyan
-                            MediaCollection.CANLI_TV -> primaryColor
+                        color = when {
+                            isHaber -> NeonAmber
+                            isCocuk -> NeonCyan
+                            isSport -> NeonAmber
+                            else -> primaryColor
                         },
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Medium

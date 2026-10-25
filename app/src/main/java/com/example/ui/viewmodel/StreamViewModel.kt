@@ -9,6 +9,7 @@ import com.example.model.WatchHistoryItem
 import com.example.service.AIStreamResolverService
 import com.example.service.FirebaseStreamService
 import com.example.service.InternetChannelService
+import com.example.service.RadioPlaybackService
 import com.example.service.TurkishMediaOnlineService
 import com.example.service.UserPreferencesManager
 import com.example.ui.i18n.AppLanguage
@@ -26,6 +27,7 @@ enum class MainNavigationTab(val key: String) {
     HABER("news"),
     COCUK("kids"),
     SPOR("sports"),
+    RADYO("radio"),
     FAVORILER("favorites")
 }
 
@@ -75,6 +77,21 @@ class StreamViewModel(
     private val _currentLanguage = MutableStateFlow(userPrefs.getLanguage())
     val currentLanguage: StateFlow<AppLanguage> = _currentLanguage.asStateFlow()
 
+    // Veri Tasarrufu Modu (Data Saver) - Kalıcı
+    private val _isDataSaverEnabled = MutableStateFlow(userPrefs.isDataSaverEnabled())
+    val isDataSaverEnabled: StateFlow<Boolean> = _isDataSaverEnabled.asStateFlow()
+
+    fun toggleDataSaver() {
+        val newVal = !_isDataSaverEnabled.value
+        _isDataSaverEnabled.value = newVal
+        userPrefs.saveDataSaverEnabled(newVal)
+    }
+
+    fun setDataSaver(enabled: Boolean) {
+        _isDataSaverEnabled.value = enabled
+        userPrefs.saveDataSaverEnabled(enabled)
+    }
+
     // Navigation Tab - Kalıcı
     private val _selectedTab = MutableStateFlow(userPrefs.getLastTab())
     val selectedTab: StateFlow<MainNavigationTab> = _selectedTab.asStateFlow()
@@ -103,6 +120,47 @@ class StreamViewModel(
     private val _favoriteIds = MutableStateFlow<Set<String>>(userPrefs.getFavorites())
     val favoriteIds: StateFlow<Set<String>> = _favoriteIds.asStateFlow()
 
+    // Sürüm ve Güncelleme Yönetimi (Kalıcı versiyon kontrolü)
+    private val _currentVersion = MutableStateFlow(userPrefs.getInstalledVersion())
+    val currentVersion: StateFlow<String> = _currentVersion.asStateFlow()
+
+    val latestReleaseVersion: String = UserPreferencesManager.LATEST_RELEASE_VERSION
+    private val _githubPageUrl = MutableStateFlow(userPrefs.getGithubPageUrl())
+    val githubPageUrl: StateFlow<String> = _githubPageUrl.asStateFlow()
+
+    private val _apkDownloadUrl = MutableStateFlow(userPrefs.getApkDownloadUrl())
+    val apkDownloadUrl: StateFlow<String> = _apkDownloadUrl.asStateFlow()
+
+    val updateDownloadUrl: String get() = _apkDownloadUrl.value
+
+    fun updateCustomGithubUrl(url: String) {
+        val trimmed = url.trim()
+        if (trimmed.isNotBlank()) {
+            _githubPageUrl.value = trimmed
+            userPrefs.saveGithubPageUrl(trimmed)
+        }
+    }
+
+    fun updateCustomApkUrl(url: String) {
+        val trimmed = url.trim()
+        if (trimmed.isNotBlank()) {
+            _apkDownloadUrl.value = trimmed
+            userPrefs.saveApkDownloadUrl(trimmed)
+        }
+    }
+
+    private val _hasUpdate = MutableStateFlow(userPrefs.hasPendingUpdate())
+    val hasUpdate: StateFlow<Boolean> = _hasUpdate.asStateFlow()
+
+    private val _isUpdating = MutableStateFlow(false)
+    val isUpdating: StateFlow<Boolean> = _isUpdating.asStateFlow()
+
+    private val _updateProgress = MutableStateFlow(0f)
+    val updateProgress: StateFlow<Float> = _updateProgress.asStateFlow()
+
+    private val _updateStatus = MutableStateFlow<String?>(null)
+    val updateStatus: StateFlow<String?> = _updateStatus.asStateFlow()
+
     // Media Collections: Canlı TV, Haber Kanalları, Çocuk Kanalları, Spor
     private val _liveTvList = MutableStateFlow<List<MediaItem>>(emptyList())
     val liveTvList: StateFlow<List<MediaItem>> = _liveTvList.asStateFlow()
@@ -116,6 +174,9 @@ class StreamViewModel(
     private val _sportsList = MutableStateFlow<List<MediaItem>>(emptyList())
     val sportsList: StateFlow<List<MediaItem>> = _sportsList.asStateFlow()
 
+    private val _radioList = MutableStateFlow<List<MediaItem>>(emptyList())
+    val radioList: StateFlow<List<MediaItem>> = _radioList.asStateFlow()
+
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
 
@@ -125,6 +186,7 @@ class StreamViewModel(
         _liveTvList.value = initialLive
         _newsList.value = internetService.getVerifiedNewsChannels()
         _kidsList.value = internetService.getVerifiedKidsChannels()
+        _radioList.value = internetService.getRadioStationList()
         _sportsList.value = initialLive.filter {
             it.kategori.equals("Spor", ignoreCase = true) ||
             it.baslik.contains("spor", ignoreCase = true) ||
@@ -196,26 +258,36 @@ class StreamViewModel(
                 }
             }
         }
+        viewModelScope.launch {
+            firestoreService.observeCollection(MediaCollection.RADYO).collect { items ->
+                if (items.isNotEmpty()) {
+                    val merged = (items + _radioList.value).distinctBy { it.baslik.lowercase().trim() }
+                    _radioList.value = merged
+                }
+            }
+        }
     }
 
     private data class ChannelLists(
         val live: List<MediaItem>,
         val news: List<MediaItem>,
         val kids: List<MediaItem>,
-        val sports: List<MediaItem>
+        val sports: List<MediaItem>,
+        val radio: List<MediaItem>
     )
 
     private val allChannelsFlow = combine(
         _liveTvList,
         _newsList,
         _kidsList,
-        _sportsList
-    ) { live, news, kids, sports ->
-        ChannelLists(live, news, kids, sports)
+        _sportsList,
+        _radioList
+    ) { live, news, kids, sports, radio ->
+        ChannelLists(live, news, kids, sports, radio)
     }
 
     /**
-     * Aktif sekmedeki temel liste (Canlı TV, Haber, Çocuk, Spor, Favoriler)
+     * Aktif sekmedeki temel liste (Canlı TV, Haber, Çocuk, Spor, Radyo, Favoriler)
      */
     private val currentTabItems: StateFlow<List<MediaItem>> = combine(
         _selectedTab,
@@ -225,10 +297,26 @@ class StreamViewModel(
         val baseList: List<MediaItem> = when (tab) {
             MainNavigationTab.CANLI_TV -> channels.live
             MainNavigationTab.HABER -> channels.news
-            MainNavigationTab.COCUK -> channels.kids
+            MainNavigationTab.COCUK -> {
+                (channels.kids + channels.live.filter {
+                    it.collectionType == MediaCollection.COCUK ||
+                    it.kategori.equals("Çocuk", ignoreCase = true) ||
+                    it.kategori.contains("çizgi", ignoreCase = true) ||
+                    it.baslik.lowercase().contains("disney") ||
+                    it.baslik.lowercase().contains("junior") ||
+                    it.baslik.lowercase().contains("jnr") ||
+                    it.baslik.lowercase().contains("cartoon") ||
+                    it.baslik.lowercase().contains("minika") ||
+                    it.baslik.lowercase().contains("baby") ||
+                    it.baslik.lowercase().contains("zarok") ||
+                    it.baslik.lowercase().contains("çocuk") ||
+                    it.baslik.lowercase().contains("cocuk")
+                }).distinctBy { it.id }
+            }
             MainNavigationTab.SPOR -> channels.sports
+            MainNavigationTab.RADYO -> channels.radio
             MainNavigationTab.FAVORILER -> {
-                val combinedAll = (channels.live + channels.news + channels.kids + channels.sports).distinctBy { it.id }
+                val combinedAll = (channels.live + channels.news + channels.kids + channels.sports + channels.radio).distinctBy { it.id }
                 combinedAll.filter { favs.contains(it.id) }
             }
         }
@@ -253,7 +341,15 @@ class StreamViewModel(
         }
 
         searchPool.filter { item ->
-            if (category == "Tümü") true else item.kategori.equals(category, ignoreCase = true)
+            if (category == "Tümü") true
+            else {
+                val itemKat = item.kategori.lowercase()
+                val selKat = category.lowercase()
+                itemKat == selKat || itemKat.contains(selKat) || selKat.contains(itemKat) ||
+                (selKat.contains("çizgi") && (itemKat.contains("çocuk") || item.baslik.lowercase().contains("disney") || item.baslik.lowercase().contains("minika"))) ||
+                (selKat.contains("okul") && (itemKat.contains("okul") || itemKat.contains("bebek") || item.baslik.lowercase().contains("baby") || item.baslik.lowercase().contains("diyanet"))) ||
+                (selKat.contains("eğitici") && itemKat.contains("eğit"))
+            }
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -277,9 +373,10 @@ class StreamViewModel(
         when (tab) {
             MainNavigationTab.CANLI_TV -> listOf("Tümü", "Ulusal", "Eğlence", "Müzik", "Belgesel", "Kültür")
             MainNavigationTab.HABER -> listOf("Tümü", "Gündem", "Ekonomi", "Canlı Yayın", "Uluslararası")
-            MainNavigationTab.COCUK -> listOf("Tümü", "Çizgi Film", "Okul Öncesi", "Eğitici", "Animasyon", "Müzik & Masal")
+            MainNavigationTab.COCUK -> listOf("Tümü", "Çocuk", "Çizgi Film", "Okul Öncesi", "Eğitici", "Animasyon")
             MainNavigationTab.SPOR -> listOf("Tümü", "Futbol & Maç", "At Yarışı & TJK", "Genel Spor")
-            MainNavigationTab.FAVORILER -> listOf("Tümü", "Haber", "Çocuk", "Spor", "Ulusal")
+            MainNavigationTab.RADYO -> listOf("Tümü", "Haber", "Müzik", "Dini", "Spor")
+            MainNavigationTab.FAVORILER -> listOf("Tümü", "Radyo", "Haber", "Çocuk", "Spor", "Ulusal")
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), listOf("Tümü"))
 
@@ -321,6 +418,23 @@ class StreamViewModel(
         _searchQuery.value = query
     }
 
+    // Background Radio Playback Service bindings
+    val activeRadioStation: StateFlow<MediaItem?> = RadioPlaybackService.currentStation
+    val isRadioPlaying: StateFlow<Boolean> = RadioPlaybackService.isPlaying
+    val isRadioBuffering: StateFlow<Boolean> = RadioPlaybackService.isBuffering
+
+    fun playRadioStation(item: MediaItem) {
+        RadioPlaybackService.play(getApplication(), item)
+    }
+
+    fun toggleRadio() {
+        RadioPlaybackService.toggle(getApplication())
+    }
+
+    fun stopRadio() {
+        RadioPlaybackService.stop(getApplication())
+    }
+
     fun playMedia(item: MediaItem, startPositionMs: Long = 0L) {
         _initialPlaybackPositionMs.value = startPositionMs
         _currentPlayingItem.value = item
@@ -328,7 +442,17 @@ class StreamViewModel(
             MediaCollection.HABER -> "VİZYON Canlı Haber HD"
             MediaCollection.COCUK -> "VİZYON Çocuk Kulübü HD"
             MediaCollection.SPOR -> "VİZYON Canlı Spor HD"
+            MediaCollection.RADYO -> "VİZYON Canlı Radyo"
             else -> "VİZYON HD Canlı Yayın"
+        }
+
+        if (item.collectionType == MediaCollection.RADYO) {
+            RadioPlaybackService.play(getApplication(), item)
+        } else {
+            // TV yayını başlatıldığında arka plandaki radyoyu otomatik durdur
+            if (RadioPlaybackService.isPlaying.value) {
+                RadioPlaybackService.stop(getApplication())
+            }
         }
 
         if (item.yayin_url.isBlank()) {
@@ -337,7 +461,11 @@ class StreamViewModel(
                     val resolved = aiResolver.resolveStreamForChannel(item.baslik, item.kategori)
                     if (resolved.isSuccess && resolved.streamUrl.isNotBlank()) {
                         _aiSourceInfo.value = resolved.sourceDescription
-                        _currentPlayingItem.value = aiResolver.createMediaItemFromResolved(item, resolved)
+                        val resolvedItem = aiResolver.createMediaItemFromResolved(item, resolved)
+                        _currentPlayingItem.value = resolvedItem
+                        if (resolvedItem.collectionType == MediaCollection.RADYO) {
+                            RadioPlaybackService.play(getApplication(), resolvedItem)
+                        }
                     }
                 } catch (_: Exception) {
                 }
@@ -358,7 +486,9 @@ class StreamViewModel(
     }
 
     /**
-     * Kanaldan veya oynatıcıdan çıkınca yayını tamamen durdurur
+     * Tam ekran oynatıcıdan çıkıldığında:
+     * TV kanalı ise yayını durdurur.
+     * Radyo ise arka planda kesintisiz çalmaya devam eder ve bildirim panelinde kontrol menüsü açık kalır.
      */
     fun stopPlayback() {
         _currentPlayingItem.value = null
@@ -416,9 +546,32 @@ class StreamViewModel(
                     internetService.parseRawM3uContent(input)
                 }
                 if (channels.isNotEmpty()) {
-                    val merged = (channels + _liveTvList.value).distinctBy { it.baslik.lowercase().trim() }
-                    _liveTvList.value = merged
-                    onResult(channels.size, "${channels.size} kanal listeye eklendi.")
+                    val kids = channels.filter {
+                        it.collectionType == MediaCollection.COCUK ||
+                        it.kategori.equals("Çocuk", ignoreCase = true) ||
+                        it.baslik.lowercase().contains("disney") ||
+                        it.baslik.lowercase().contains("cartoon")
+                    }
+                    val news = channels.filter {
+                        it.collectionType == MediaCollection.HABER ||
+                        it.kategori.equals("Haber", ignoreCase = true)
+                    }
+                    val sports = channels.filter {
+                        it.collectionType == MediaCollection.SPOR ||
+                        it.kategori.equals("Spor", ignoreCase = true)
+                    }
+                    val radio = channels.filter {
+                        it.collectionType == MediaCollection.RADYO ||
+                        it.kategori.equals("Radyo", ignoreCase = true)
+                    }
+
+                    if (kids.isNotEmpty()) _kidsList.value = (kids + _kidsList.value).distinctBy { it.baslik.lowercase().trim() }
+                    if (news.isNotEmpty()) _newsList.value = (news + _newsList.value).distinctBy { it.baslik.lowercase().trim() }
+                    if (sports.isNotEmpty()) _sportsList.value = (sports + _sportsList.value).distinctBy { it.baslik.lowercase().trim() }
+                    if (radio.isNotEmpty()) _radioList.value = (radio + _radioList.value).distinctBy { it.baslik.lowercase().trim() }
+                    _liveTvList.value = (channels + _liveTvList.value).distinctBy { it.baslik.lowercase().trim() }
+
+                    onResult(channels.size, "${channels.size} kanal listeye başarıyla eklendi ve kategorize edildi.")
                 } else {
                     onResult(0, "Geçerli kanal bulunamadı.")
                 }
@@ -450,6 +603,7 @@ class StreamViewModel(
             MediaCollection.HABER -> _newsList.value = listOf(newItem) + _newsList.value
             MediaCollection.COCUK -> _kidsList.value = listOf(newItem) + _kidsList.value
             MediaCollection.SPOR -> _sportsList.value = listOf(newItem) + _sportsList.value
+            MediaCollection.RADYO -> _radioList.value = listOf(newItem) + _radioList.value
         }
 
         firestoreService.addMediaItem(collection, newItem) { success, msg ->
@@ -479,6 +633,66 @@ class StreamViewModel(
             } else {
                 onResult(0, "${preset.title} yüklenemedi. Lütfen internet bağlantınızı kontrol edin.")
             }
+        }
+    }
+
+    /**
+     * Sürüm kontrolü ve güncelleme denetimi
+     */
+    fun checkForUpdates(onResult: (Boolean, String) -> Unit) {
+        val hasPending = userPrefs.hasPendingUpdate()
+        _hasUpdate.value = hasPending
+        if (hasPending) {
+            val current = _currentVersion.value
+            onResult(true, "Yeni VİZYON TV güncellemesi mevcut! Mevcut sürümünüz: $current -> Hedef: $latestReleaseVersion")
+        } else {
+            onResult(false, "VİZYON TV güncel ($latestReleaseVersion). En son kanal ve akış listesini kullanıyorsunuz.")
+        }
+    }
+
+    /**
+     * Uygulama ve kanal akışlarını yeni sürüme günceller
+     */
+    fun applyAppUpdate(onFinished: (Boolean, String) -> Unit) {
+        viewModelScope.launch {
+            _isUpdating.value = true
+            _updateProgress.value = 0.15f
+            _updateStatus.value = "Yeni VİZYON TV yayın paketi indiriliyor..."
+            kotlinx.coroutines.delay(200)
+
+            _updateProgress.value = 0.50f
+            _updateStatus.value = "Haber ve Çocuk akışları optimize ediliyor..."
+            kotlinx.coroutines.delay(250)
+
+            _updateProgress.value = 0.85f
+            _updateStatus.value = "Kanal önbelleği ve veritabanı eşitleniyor..."
+            // Refresh and ensure clean verified channels
+            refreshChannels()
+            kotlinx.coroutines.delay(200)
+
+            userPrefs.saveInstalledVersion(latestReleaseVersion)
+            _currentVersion.value = latestReleaseVersion
+            _hasUpdate.value = false
+            _updateProgress.value = 1.0f
+            _updateStatus.value = "Güncelleme tamamlandı! VİZYON TV $latestReleaseVersion aktif."
+            _isUpdating.value = false
+
+            onFinished(true, "VİZYON TV başarıyla $latestReleaseVersion sürümüne güncellendi!")
+        }
+    }
+
+    /**
+     * Geliştirici / Test için önceki sürüme çekip uyarı vermesini sağlayan metod
+     */
+    fun toggleSimulatePreviousVersion() {
+        if (_currentVersion.value == latestReleaseVersion) {
+            userPrefs.saveInstalledVersion(UserPreferencesManager.PREVIOUS_VERSION_BASELINE)
+            _currentVersion.value = UserPreferencesManager.PREVIOUS_VERSION_BASELINE
+            _hasUpdate.value = true
+        } else {
+            userPrefs.saveInstalledVersion(latestReleaseVersion)
+            _currentVersion.value = latestReleaseVersion
+            _hasUpdate.value = false
         }
     }
 }

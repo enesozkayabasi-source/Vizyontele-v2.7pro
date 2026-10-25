@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Android 12+ (API 31+) SplashScreen Theme -->
+    <style name="Theme.MyApplication" parent="android:Theme.DeviceDefault.NoActionBar">
+        <item name="android:windowBackground">@drawable/splash_window_background</item>
+        <!-- Android 12+ SplashScreen: Beautiful gold logo on seamless luxury dark background -->
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/vizyontv_gold_icon_1791394537825</item>
+        <item name="android:windowSplashScreenBackground">@color/splash_background</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@color/splash_background</item>
+    </style>
+</resources>

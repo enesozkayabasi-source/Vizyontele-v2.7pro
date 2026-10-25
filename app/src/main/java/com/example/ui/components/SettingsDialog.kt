@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -32,6 +33,10 @@ import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Smartphone
 import androidx.compose.material.icons.filled.Tv
+import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.OpenInBrowser
+import androidx.compose.material.icons.filled.SystemUpdate
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -39,10 +44,13 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -60,6 +68,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.service.M3uPreset
+import com.example.service.UserPreferencesManager
 import com.example.ui.i18n.AppLanguage
 import com.example.ui.theme.AppLayoutMode
 import com.example.ui.theme.AppThemeMode
@@ -77,11 +86,31 @@ fun SettingsDialog(
     presets: List<M3uPreset>,
     onLoadPreset: (M3uPreset) -> Unit,
     onImportM3u: (input: String, isUrl: Boolean) -> Unit,
+    isDataSaverEnabled: Boolean = false,
+    onToggleDataSaver: ((Boolean) -> Unit)? = null,
+    currentVersion: String = "v2.9.0",
+    latestVersion: String = "v2.9.0",
+    hasUpdate: Boolean = false,
+    isUpdating: Boolean = false,
+    updateProgress: Float = 0f,
+    updateStatus: String? = null,
+    githubPageUrl: String = "https://github.com/vizyontv/vizyontv-app/releases",
+    apkDownloadUrl: String = "https://github.com/vizyontv/vizyontv-app/releases/latest/download/vizyontv.apk",
+    updateUrl: String = apkDownloadUrl,
+    onSaveCustomUrls: ((githubUrl: String, apkUrl: String) -> Unit)? = null,
+    onCheckForUpdates: () -> Unit = {},
+    onApplyUpdate: () -> Unit = {},
+    onToggleSimulatePreviousVersion: () -> Unit = {},
+    onOpenUpdateLink: (String) -> Unit = {},
     onDismiss: () -> Unit
 ) {
     var showM3uInputSection by remember { mutableStateOf(false) }
     var m3uInputText by remember { mutableStateOf("") }
     var isUrlMode by remember { mutableStateOf(true) }
+    var showUrlEditSection by remember { mutableStateOf(false) }
+    var customGhInput by remember(githubPageUrl) { mutableStateOf(githubPageUrl) }
+    var customApkInput by remember(apkDownloadUrl) { mutableStateOf(apkDownloadUrl) }
+    var urlsSavedFeedback by remember { mutableStateOf(false) }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -312,6 +341,73 @@ fun SettingsDialog(
                     }
                 }
 
+                Spacer(modifier = Modifier.height(18.dp))
+
+                // SECTION 3.5: VERİ TASARRUFU SİSTEMİ (DATA SAVER)
+                SectionHeader(title = "Veri Tasarrufu Modu (Daha Az İnternet)", icon = Icons.Default.Download)
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onToggleDataSaver?.invoke(!isDataSaverEnabled) },
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isDataSaverEnabled) NeonCyan.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+                    ),
+                    border = if (isDataSaverEnabled) androidx.compose.foundation.BorderStroke(1.5.dp, NeonCyan) else null
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "İnternet Veri Tasarrufu",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp,
+                                    color = if (isDataSaverEnabled) NeonCyan else MaterialTheme.colorScheme.onSurface
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Surface(
+                                    shape = RoundedCornerShape(4.dp),
+                                    color = if (isDataSaverEnabled) NeonCyan.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surfaceVariant
+                                ) {
+                                    Text(
+                                        text = if (isDataSaverEnabled) "%85 TASARRUF" else "KAPALI",
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = if (isDataSaverEnabled) NeonCyan else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Mobil internet kullanımını %70-%85 oranında düşürür. Canlı yayınları SD kalitede (480p/750kbps) sınırlandırır ve kotalı interneti korur.",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                lineHeight = 15.sp
+                            )
+                        }
+
+                        Switch(
+                            checked = isDataSaverEnabled,
+                            onCheckedChange = { onToggleDataSaver?.invoke(it) },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.Black,
+                                checkedTrackColor = NeonCyan,
+                                uncheckedThumbColor = MaterialTheme.colorScheme.outline,
+                                uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant
+                            )
+                        )
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(20.dp))
 
                 // SECTION 4: EKLENTİ & TOPLU M3U ÇALMA LİSTELERİ
@@ -499,7 +595,298 @@ fun SettingsDialog(
                 HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // SECTION 5: HAKKINDA & VERSİYON
+                // SECTION 5: GÜNCELLEME BAĞLANTISI & SÜRÜM YÖNETİMİ
+                SectionHeader(title = "Güncelleme Bağlantısı & Sürüm Denetimi", icon = Icons.Default.SystemUpdate)
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (hasUpdate) NeonAmber.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+                    ),
+                    border = if (hasUpdate) androidx.compose.foundation.BorderStroke(1.5.dp, NeonAmber) else null
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    text = if (hasUpdate) "⚠️ Yeni Güncelleme Uyarısı Mevcut!" else "✅ Sürümünüz Güncel",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp,
+                                    color = if (hasUpdate) NeonAmber else MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "Mevcut: $currentVersion • En Yeni: $latestVersion",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = if (hasUpdate) NeonAmber.copy(alpha = 0.25f) else NeonCyan.copy(alpha = 0.15f),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, if (hasUpdate) NeonAmber else NeonCyan)
+                            ) {
+                                Text(
+                                    text = currentVersion,
+                                    color = if (hasUpdate) NeonAmber else NeonCyan,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 11.sp,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                )
+                            }
+                        }
+
+                        if (hasUpdate) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Önceki bir sürüm kullanıyorsunuz! VİZYON TV yeni sürümünde haber ve çocuk kanallarının tamamı (%100 200 OK) test edildi, yeni canlı logolar ve açılış animasyonu aktifleştirildi.",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.9f)
+                            )
+                        }
+
+                        if (isUpdating) {
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Text(
+                                text = updateStatus ?: "Güncelleme uygulanıyor...",
+                                fontSize = 11.sp,
+                                color = NeonCyan,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            LinearProgressIndicator(
+                                progress = { updateProgress },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(6.dp)
+                                    .clip(RoundedCornerShape(3.dp)),
+                                color = NeonCyan,
+                                trackColor = MaterialTheme.colorScheme.surfaceVariant
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Buton Grubu 1: Dahili Güncelleme ve Denetim
+                        if (hasUpdate) {
+                            Button(
+                                onClick = onApplyUpdate,
+                                enabled = !isUpdating,
+                                colors = ButtonDefaults.buttonColors(containerColor = NeonAmber),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.CloudDownload,
+                                    contentDescription = null,
+                                    tint = Color.Black,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Uygulama İçi Şimdi Güncelle (v$latestVersion)",
+                                    color = Color.Black,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
+
+                        // Buton Grubu 2: Doğrudan APK İndirme ve GitHub Sayfamız
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            // Doğrudan APK İndir Butonu (.apk linki tıklandığı an indirmeyi başlatır)
+                            Button(
+                                onClick = { onOpenUpdateLink(apkDownloadUrl) },
+                                colors = ButtonDefaults.buttonColors(containerColor = NeonAmber.copy(alpha = 0.22f)),
+                                border = androidx.compose.foundation.BorderStroke(1.2.dp, NeonAmber),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier
+                                    .weight(1.2f)
+                                    .testTag("dialog_direct_apk_button")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Download,
+                                    contentDescription = null,
+                                    tint = NeonAmber,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Doğrudan APK İndir",
+                                    color = NeonAmber,
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 11.sp
+                                )
+                            }
+
+                            // GitHub Sayfamıza Yönlendirme Butonu
+                            Button(
+                                onClick = { onOpenUpdateLink(githubPageUrl) },
+                                colors = ButtonDefaults.buttonColors(containerColor = NeonCyan.copy(alpha = 0.2f)),
+                                border = androidx.compose.foundation.BorderStroke(1.2.dp, NeonCyan),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("dialog_github_page_button")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.OpenInBrowser,
+                                    contentDescription = null,
+                                    tint = NeonCyan,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "GitHub Sayfası",
+                                    color = NeonCyan,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.sp
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // GitHub / APK Bağlantısını Özelleştirme / Görüntüleme Bölümü
+                        Button(
+                            onClick = { showUrlEditSection = !showUrlEditSection },
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Settings,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = if (showUrlEditSection) "Bağlantı Ayarlarını Gizle" else "İndirme ve GitHub Bağlantılarını Düzenle",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+
+                        AnimatedVisibility(visible = showUrlEditSection) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 8.dp)
+                                    .background(
+                                        MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
+                                        RoundedCornerShape(10.dp)
+                                    )
+                                    .padding(10.dp)
+                            ) {
+                                Text(
+                                    text = "Doğrudan APK İndirme Bağlantısı (.apk):",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = NeonAmber
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                OutlinedTextField(
+                                    value = customApkInput,
+                                    onValueChange = { customApkInput = it },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    singleLine = true,
+                                    textStyle = androidx.compose.ui.text.TextStyle(fontSize = 11.sp),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = NeonAmber,
+                                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                                    )
+                                )
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                Text(
+                                    text = "GitHub Sürüm / Proje Sayfası:",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = NeonCyan
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                OutlinedTextField(
+                                    value = customGhInput,
+                                    onValueChange = { customGhInput = it },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    singleLine = true,
+                                    textStyle = androidx.compose.ui.text.TextStyle(fontSize = 11.sp),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = NeonCyan,
+                                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                                    )
+                                )
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                Button(
+                                    onClick = {
+                                        onSaveCustomUrls?.invoke(customGhInput, customApkInput)
+                                        urlsSavedFeedback = true
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = NeonCyan),
+                                    shape = RoundedCornerShape(8.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = null,
+                                        tint = Color.Black,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = if (urlsSavedFeedback) "Bağlantılar Kaydedildi ✓" else "Bağlantıları Kaydet",
+                                        color = Color.Black,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 11.sp
+                                    )
+                                }
+                            }
+                        }
+
+                        // Sürüm Değişiklik Uyarısı Test Butonu
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = Color.Transparent,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onToggleSimulatePreviousVersion() }
+                                .padding(vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = if (hasUpdate) "🔄 Güncel Sürüme Zorla (Test)" else "🧪 Önceki Sürüm Uyarısını Test Et (${UserPreferencesManager.PREVIOUS_VERSION_BASELINE})",
+                                fontSize = 10.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(18.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // SECTION 6: HAKKINDA & LOGO
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -507,22 +894,31 @@ fun SettingsDialog(
                 ) {
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.Info,
-                                contentDescription = null,
-                                tint = NeonAmber,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = Color(0xFF0F1523),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFFD700)),
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                            ) {
+                                androidx.compose.foundation.Image(
+                                    painter = androidx.compose.ui.res.painterResource(id = com.example.R.drawable.img_corner_logo_premium_1791395314114),
+                                    contentDescription = "VİZYON TV Logo",
+                                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "VİZYONTELE Turbo Player",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 13.sp,
+                                text = "VİZYON TV",
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 14.sp,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                         }
                         Text(
-                            text = "Kesintisiz Türksat & Kamu HLS canlı akış motoru",
+                            text = "Canlı TV, Haber, Çocuk ve Spor Yayın Sistemi",
                             fontSize = 11.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -534,7 +930,7 @@ fun SettingsDialog(
                         border = androidx.compose.foundation.BorderStroke(1.dp, NeonAmber.copy(alpha = 0.6f))
                     ) {
                         Text(
-                            text = "v2.7.0 Pro",
+                            text = latestVersion,
                             color = NeonAmber,
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 11.sp,

@@ -8,14 +8,17 @@ enum class AppLanguage(val code: String, val title: String, val flag: String) {
 
 object AppStrings {
     private val translations = mapOf(
-        "app_name" to mapOf("tr" to "Vizyontele", "en" to "Vizyontele", "de" to "Vizyontele"),
+        "app_name" to mapOf("tr" to "VİZYON TV", "en" to "VİZYON TV", "de" to "VİZYON TV"),
         "live_tv" to mapOf("tr" to "Canlı TV", "en" to "Live TV", "de" to "Live-TV"),
         "news" to mapOf("tr" to "Haber", "en" to "News", "de" to "Nachrichten"),
         "kids" to mapOf("tr" to "Çocuk", "en" to "Kids", "de" to "Kinder"),
         "sports" to mapOf("tr" to "Spor", "en" to "Sports", "de" to "Sport"),
         "movies" to mapOf("tr" to "Filmler", "en" to "Movies", "de" to "Filme"),
         "series" to mapOf("tr" to "Diziler", "en" to "Series", "de" to "Serien"),
+        "radio" to mapOf("tr" to "Radyo", "en" to "Radio", "de" to "Radio"),
         "favorites" to mapOf("tr" to "Favoriler", "en" to "Favorites", "de" to "Favoriten"),
+        "religious" to mapOf("tr" to "Dini", "en" to "Religious", "de" to "Religiös"),
+        "music" to mapOf("tr" to "Müzik", "en" to "Music", "de" to "Musik"),
         "all" to mapOf("tr" to "Tümü", "en" to "All", "de" to "Alle"),
         "settings" to mapOf("tr" to "Ayarlar", "en" to "Settings", "de" to "Einstellungen"),
         "search_hint" to mapOf("tr" to "Kanal, haber, çocuk veya spor ara...", "en" to "Search channel, news, kids or sport...", "de" to "Kanal, Nachrichten, Kinder oder Sport suchen..."),

@@ -166,6 +166,7 @@ class FirebaseStreamService {
             MediaCollection.HABER -> InternetChannelService().getVerifiedNewsChannels()
             MediaCollection.COCUK -> InternetChannelService().getVerifiedKidsChannels()
             MediaCollection.SPOR -> InternetChannelService().getTkgsFullChannelList().filter { it.kategori == "Spor" }
+            MediaCollection.RADYO -> InternetChannelService().getRadioStationList()
         }
     }
 

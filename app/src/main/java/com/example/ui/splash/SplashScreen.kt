@@ -68,7 +68,7 @@ fun SplashScreen(
     modifier: Modifier = Modifier
 ) {
     var progress by remember { mutableFloatStateOf(0f) }
-    var statusText by remember { mutableStateOf("VİZYON TELE Başlatılıyor...") }
+    var statusText by remember { mutableStateOf("VİZYON TV Başlatılıyor...") }
     val entranceScale = remember { Animatable(0.7f) }
     val entranceAlpha = remember { Animatable(0f) }
 
@@ -95,23 +95,22 @@ fun SplashScreen(
         label = "subtle_rotate"
     )
 
-    // Ultra-fast, snappy opening sequence
+    // Snappy, fast opening sequence (~0.8s total)
     LaunchedEffect(Unit) {
-        // Fast, smooth entrance
-        entranceAlpha.animateTo(1f, animationSpec = tween(150, easing = FastOutSlowInEasing))
+        entranceAlpha.animateTo(1f, animationSpec = tween(200, easing = FastOutSlowInEasing))
         entranceScale.animateTo(1f, animationSpec = spring(dampingRatio = 0.85f, stiffness = 600f))
 
         progress = 0.35f
-        statusText = "Türksat & Canlı TV Taranıyor..."
-        delay(100)
+        statusText = "Türksat & Canlı TV Bağlanıyor..."
+        delay(250)
 
-        progress = 0.75f
-        statusText = "Türkçe Diziler ve Filmler Hazırlanıyor..."
-        delay(120)
+        progress = 0.85f
+        statusText = "Kanallar Hazırlanıyor..."
+        delay(300)
 
         progress = 1.0f
-        statusText = "Hazır! Vizyontele Açılıyor..."
-        delay(80)
+        statusText = "Hazır! Keyifli Seyirler..."
+        delay(200)
 
         onFinished()
     }
@@ -119,13 +118,13 @@ fun SplashScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFF060911))
+            .background(Color(0xFF070A12))
             .testTag("splash_screen")
     ) {
-        // Atmospheric cinematic background image
+        // Atmospheric cinematic background image (Gold Luxury Art)
         Image(
-            painter = painterResource(id = R.drawable.vizyontele_splash_1790878175739),
-            contentDescription = "Vizyontele Splash Arka Planı",
+            painter = painterResource(id = R.drawable.vizyontv_gold_splash_1791394550229),
+            contentDescription = "VİZYON TV Splash Arka Planı",
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize()
         )
@@ -135,13 +134,12 @@ fun SplashScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
-                    Brush.radialGradient(
+                    Brush.verticalGradient(
                         colors = listOf(
-                            Color.Transparent,
-                            Color(0xFF060911).copy(alpha = 0.75f),
-                            Color(0xFF060911).copy(alpha = 0.96f)
-                        ),
-                        radius = 1100f
+                            Color.Black.copy(alpha = 0.50f),
+                            Color(0xFF070A12).copy(alpha = 0.70f),
+                            Color(0xFF070A12).copy(alpha = 0.96f)
+                        )
                     )
                 )
         )
@@ -154,32 +152,32 @@ fun SplashScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.weight(1.1f))
 
-            // Orijinal Vizyontele Logosu & Fotoğrafı (Eski Şekline Geri Getirildi)
+            // VİZYON TV Altın Kanatlı Logo
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
                     .scale(entranceScale.value)
                     .size(160.dp)
                     .clip(RoundedCornerShape(32.dp))
-                    .background(Color(0xFF0B1120))
+                    .background(Color(0xFF10141E))
                     .border(
-                        width = 3.dp,
-                        color = NeonCyan.copy(alpha = glowPulse),
+                        width = 2.5.dp,
+                        color = Color(0xFFD4AF37).copy(alpha = glowPulse),
                         shape = RoundedCornerShape(32.dp)
                     )
                     .testTag("splash_logo_box")
             ) {
                 Image(
-                    painter = painterResource(id = R.drawable.vizyontele_logo_1790878162899),
-                    contentDescription = "Vizyontele Logo",
+                    painter = painterResource(id = R.drawable.vizyontv_gold_icon_1791394537825),
+                    contentDescription = "VİZYON TV Logo",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
                 )
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             // Brand Title and Logo
             Row(
@@ -191,15 +189,15 @@ fun SplashScreen(
                     fontSize = 34.sp,
                     fontWeight = FontWeight.Black,
                     color = Color.White,
-                    letterSpacing = 3.sp
+                    letterSpacing = 4.sp
                 )
                 Spacer(modifier = Modifier.width(10.dp))
                 Text(
-                    text = "TELE",
+                    text = "TV",
                     fontSize = 34.sp,
                     fontWeight = FontWeight.Black,
-                    color = NeonAmber,
-                    letterSpacing = 3.sp
+                    color = Color(0xFFD4AF37),
+                    letterSpacing = 4.sp
                 )
             }
 
@@ -207,11 +205,21 @@ fun SplashScreen(
 
             // Subtitle Tagline
             Text(
-                text = "TÜRKÇE DİZİLER • FİLMLER • CANLI TV",
+                text = "Keşfetmeye Hazır Mısınız?",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color.White.copy(alpha = 0.95f),
+                letterSpacing = 1.sp
+            )
+
+            Spacer(modifier = Modifier.height(3.dp))
+
+            Text(
+                text = "En İyi İçerikler, Premium Deneyim",
                 fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White.copy(alpha = 0.85f),
-                letterSpacing = 2.sp
+                fontWeight = FontWeight.Normal,
+                color = Color(0xFFD4AF37).copy(alpha = 0.90f),
+                letterSpacing = 0.5.sp
             )
 
             Spacer(modifier = Modifier.weight(1f))
@@ -237,7 +245,7 @@ fun SplashScreen(
                             modifier = Modifier
                                 .size(8.dp)
                                 .clip(CircleShape)
-                                .background(NeonCyan)
+                                .background(Color(0xFFD4AF37))
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
@@ -255,7 +263,7 @@ fun SplashScreen(
                         text = "${(progress * 100).toInt()}%",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = NeonCyan
+                        color = Color(0xFFD4AF37)
                     )
                 }
 
@@ -268,7 +276,7 @@ fun SplashScreen(
                         .fillMaxWidth()
                         .height(6.dp)
                         .clip(RoundedCornerShape(3.dp)),
-                    color = NeonCyan,
+                    color = Color(0xFFD4AF37),
                     trackColor = Color.White.copy(alpha = 0.15f)
                 )
 
@@ -277,8 +285,8 @@ fun SplashScreen(
                 // Quick Skip / Enter Button
                 Surface(
                     shape = RoundedCornerShape(24.dp),
-                    color = Color.White.copy(alpha = 0.12f),
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.2f)),
+                    color = Color.White.copy(alpha = 0.10f),
+                    border = BorderStroke(1.dp, Color(0xFFD4AF37).copy(alpha = 0.4f)),
                     modifier = Modifier
                         .clickable { onFinished() }
                         .testTag("splash_skip_button")
@@ -297,7 +305,7 @@ fun SplashScreen(
                         Icon(
                             imageVector = Icons.Default.PlayArrow,
                             contentDescription = "Hemen Başla",
-                            tint = NeonCyan,
+                            tint = Color(0xFFD4AF37),
                             modifier = Modifier.size(16.dp)
                         )
                     }

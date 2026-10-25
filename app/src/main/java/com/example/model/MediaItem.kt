@@ -39,6 +39,7 @@ data class MediaItem(
     val kategori: String = "",
     val resim_url: String = "",
     val yayin_url: String = "",
+    val backup_urls: List<String> = emptyList(),
     val collectionType: MediaCollection = MediaCollection.CANLI_TV,
     val isFavorite: Boolean = false,
     val description: String = "",
@@ -72,6 +73,14 @@ data class MediaItem(
 
     val totalEpisodes: Int
         get() = seasons.sumOf { it.episodes.size }
+
+    fun getAllStreamUrls(): List<String> {
+        val primary = getActiveStreamUrl()
+        val all = mutableListOf<String>()
+        if (primary.isNotBlank()) all.add(primary)
+        all.addAll(backup_urls.filter { it.isNotBlank() && it != primary })
+        return all.distinct()
+    }
 
     fun getActiveStreamUrl(): String {
         if (isSeries && seasons.isNotEmpty()) {
@@ -114,7 +123,8 @@ enum class MediaCollection(
     CANLI_TV("canli_tv", "Canlı TV", "Canlı genel ve ulusal TV kanalları"),
     HABER("haber", "Haber", "Canlı haber, ekonomi ve gündem kanalları"),
     COCUK("cocuk", "Çocuk", "Çocuk ve çizgi film kanalları"),
-    SPOR("spor", "Spor", "Canlı spor yayınları");
+    SPOR("spor", "Spor", "Canlı spor yayınları"),
+    RADYO("radyo", "Radyo", "Canlı radyo istasyonları");
 
     companion object {
         fun fromKey(key: String): MediaCollection {

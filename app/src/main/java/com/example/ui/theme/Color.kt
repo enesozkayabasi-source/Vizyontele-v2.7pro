@@ -15,6 +15,14 @@ val DarkTextPrimary = Color(0xFFF8FAFC)
 val DarkTextSecondary = Color(0xFF94A3B8)
 val DarkTextMuted = Color(0xFF64748B)
 
+// Luxury & Premium Accents
+val LuxuryGoldPrimary = Color(0xFFFFD700)
+val LuxuryGoldAccent = Color(0xFFFFA000)
+val LuxuryGoldGlow = Color(0xFFE5A93C)
+val LuxuryDarkGlass = Color(0xCC0D1424)
+val LuxuryBorderGlow = Color(0x55FFD700)
+val SapphireAccent = Color(0xFF00D2FF)
+
 // Shared aliases
 val TextPrimary = DarkTextPrimary
 val TextSecondary = DarkTextSecondary

@@ -16,6 +16,7 @@ enum class AppThemeMode(
     val description: String,
     val primaryColorHex: Long
 ) {
+    LUXURY_GOLD("Premium Altın", "Lüks Gece Siyahı & Parlak Altın Vurgular", 0xFFFFD700),
     MIDNIGHT("OLED Siyah", "Saf siyah zemin & Neon Mavi (Pil tasarrufu)", 0xFF00E5FF),
     NAVY("Gece Mavisi", "Derin lacivert & Safir mavisi tonları", 0xFF38BDF8),
     CRIMSON("Sinema Kırmızı", "Netflix & Sinema tarzı koyu kömür & Canlı Kırmızı", 0xFFFF3366),
@@ -29,6 +30,25 @@ enum class AppLayoutMode(val title: String, val description: String) {
     PHONE("Telefon Modu", "Mobil uyumlu dikey arayüz, alt menü, dokunmatik kolay kullanım"),
     TV("Android TV Modu", "Geniş ekran TV arayüzü, sol menü rayı, büyük kumanda odaklı kartlar")
 }
+
+// 0. Luxury Gold & Obsidian Theme
+val LuxuryGoldColorScheme = darkColorScheme(
+    primary = Color(0xFFFFD700), // Pure luxury gold
+    onPrimary = Color(0xFF0D0F14),
+    primaryContainer = Color(0xFF241C0A),
+    onPrimaryContainer = Color(0xFFFFE57F),
+    secondary = Color(0xFF00D2FF), // Sapphire neon accent
+    onSecondary = Color(0xFF050B14),
+    tertiary = Color(0xFFFFA000), // Amber gold
+    onTertiary = Color(0xFF000000),
+    background = Color(0xFF070A12), // Deep obsidian midnight
+    onBackground = Color(0xFFF9FAFB),
+    surface = Color(0xFF0F1523),
+    onSurface = Color(0xFFF9FAFB),
+    surfaceVariant = Color(0xFF161F33),
+    onSurfaceVariant = Color(0xFFA1ADC7),
+    outline = Color(0xFFFFD700)
+)
 
 // 1. OLED Pure Black
 val MidnightDarkColorScheme = darkColorScheme(
@@ -146,11 +166,12 @@ val LightColorScheme = lightColorScheme(
 
 @Composable
 fun MyApplicationTheme(
-    themeMode: AppThemeMode = AppThemeMode.MIDNIGHT,
+    themeMode: AppThemeMode = AppThemeMode.LUXURY_GOLD,
     content: @Composable () -> Unit
 ) {
     val view = LocalView.current
     val colorScheme: ColorScheme = when (themeMode) {
+        AppThemeMode.LUXURY_GOLD -> LuxuryGoldColorScheme
         AppThemeMode.MIDNIGHT -> MidnightDarkColorScheme
         AppThemeMode.NAVY -> NavyColorScheme
         AppThemeMode.CRIMSON -> CrimsonColorScheme
